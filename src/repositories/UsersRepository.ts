@@ -31,4 +31,11 @@ export class UsersRepository extends Repository {
 
 		await this.postgres.query(`INSERT INTO users (${keys}) VALUES (${queue})`, values);
 	}
+
+	/**
+	 * Return the password data to compare with the data from the request
+	 */
+	static async getPasswordByLogin(login: string): Promise<{rows: User[]}> {
+		return this.postgres.query('SELECT "password", "passwordKdfType", "pepperVersion" FROM users WHERE login = $1 LIMIT 1', [login]);
+	}
 }

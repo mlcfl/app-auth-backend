@@ -1,10 +1,12 @@
 import {randomUUID} from 'node:crypto';
+import type {CookieOptions} from 'express';
 import randomatic from 'randomatic';
 import {argon2id} from '@noble/hashes/argon2';
 import {randomBytes, bytesToHex} from '@noble/hashes/utils';
 import {Service} from 'common/be/Service';
 import {Project} from 'common/be/services';
-import type {SignUpReqSchema} from 'common/schemas';
+import {SessionsRepository} from 'common/be/repositories';
+import type {SignUpReqSchema, SignInReqSchema} from 'common/schemas';
 import {UniqueDataSourcesRepository, UsersRepository} from '~/repositories';
 import {UniqueIdGenerator, type GetInitialDataProps} from '~/helpers';
 
@@ -28,6 +30,57 @@ export class AuthService extends Service {
 		await this.saveNewUser({...passwordRest, login, agreements});
 
 		return {login, password};
+	}
+
+	/**
+	 * Set a temporary cookie for later exchange for a refresh token
+	 */
+	static async signIn({login, password}: SignInReqSchema): Promise<[string, string, CookieOptions] | null> {
+		const {rows: [user]} = await UsersRepository.getPasswordByLogin(login);
+
+		if (!user) {
+			return null;
+		}
+
+		const {password: {hash, salt}, passwordKdfType, pepperVersion} = user;
+
+		if (passwordKdfType !== 'argon2id' || pepperVersion !== 1) {
+			return null;
+		}
+
+		const project = Project.getInstance<Project>();
+		const pepper = project.env.PASSWORD_PEPPER;
+		const hashArray = argon2id(password, salt, {
+			key: pepper,
+			m: 47104,
+			t: 1,
+			p: 1,
+		});
+		const passwordsEqual = bytesToHex(hashArray) === hash;
+
+		if (!passwordsEqual) {
+			return null;
+		}
+
+		const host = project.env.HOST;
+		const cookieName = 'tt';
+		const token = randomUUID();
+		const expires = new Date();
+		expires.setMinutes(expires.getMinutes() + 2);
+
+		const options: CookieOptions = {
+			secure: false,
+			httpOnly: true,
+			domain: '.' + host,
+			sameSite: 'strict',
+			path: '/api',
+			signed: false,
+			expires,
+		};
+
+		SessionsRepository.addTempToken(login, {token, expires});
+
+		return [cookieName, token, options];
 	}
 
 	/**

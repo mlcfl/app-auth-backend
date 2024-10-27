@@ -9,7 +9,7 @@ import {
 	type Response,
 } from 'common/be/router';
 import {Controller} from 'common/be/Controller';
-import {signUpReqSchema} from 'common/schemas';
+import {signUpReqSchema, signInReqSchema} from 'common/schemas';
 import {AuthService} from '~/services';
 import {SettingsRepository} from '~/repositories';
 
@@ -37,5 +37,35 @@ export class ApiController extends Controller {
 		const {login, password} = await AuthService.signUp(body);
 
 		return res.json({login: login.join('-'), password});
+	}
+
+	@Method(POST, '/signin')
+	async signIn(@Req() req: Request, @Res() res: Response): Promise<Response> {
+		if (!req.xhr) {
+			return res.sendStatus(400);
+		}
+
+		const {at: accessToken, rt: refreshToken} = req.cookies;
+
+		if (accessToken || refreshToken) {
+			return res.sendStatus(400);
+		}
+
+		const {body} = await validateRequest(req, signInReqSchema);
+		const {apps, endpoints} = await SettingsRepository.getToggles();
+
+		if (!apps.auth || !endpoints.auth.signIn) {
+			return res.sendStatus(400);
+		}
+
+		const cookie = await AuthService.signIn(body);
+
+		if (!cookie) {
+			return res.sendStatus(400);
+		}
+
+		res.cookie(...cookie);
+
+		return res.sendStatus(200);
 	}
 }
