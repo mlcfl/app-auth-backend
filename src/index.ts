@@ -1,44 +1,72 @@
+import process from 'node:process';
 import {join} from 'node:path';
-import express, {Express} from 'express';
+import express, {type Express} from 'express';
+import cookieParser from 'cookie-parser';
 import {ExpressMiddlewares} from 'common/be/ExpressMiddlewares';
-import {Fs} from 'common/be/services';
+import {Project} from 'common/be/services';
+import {useExpressServer} from 'common/be/router';
+import {TokenController} from 'common/be/controllers';
+import {RootController, ApiController} from './controllers';
+import {Postgres, Mongo} from 'common/be/db';
+import {DiKeys} from 'common/be/di';
+import {appDi} from './appDi';
 
-const replaceMasks = (template: string, data: Record<string, string>): string => {
-	for (const [mask, content] of Object.entries(data)) {
-		template = template.replace(`<!--[${mask}]-->`, content);
-	}
+import 'reflect-metadata';
 
-	return template;
+const initDatabases = async () => {
+	const {env} = Project.getInstance<Project>();
+
+	const postgres = new Postgres({
+		user: env.PGUSER,
+		password: env.PGPASSWORD,
+		host: env.PGHOST,
+		database: env.PGDATABASE,
+		port: env.PGPORT,
+	});
+
+	const mongo = new Mongo(env.MONGO_CONNECTION_STRING);
+	await mongo.connect();
+
+	appDi.bind(DiKeys.Postgres).toConstantValue(postgres);
+	appDi.bind(DiKeys.Mongo).toConstantValue(mongo);
+
+	process.on('SIGINT', async () => {
+		await postgres.pool.end();
+		await mongo.disconnect();
+		process.exit(0);
+	});
 };
 
 /**
- * SSR example (backend part)
+ * SSR example
  */
 export const load = async (name: string): Promise<Express> => {
 	const app = express();
+	const {paths} = Project.getInstance<Project>();
 
-	const distPath = `${Fs.rootPath}/apps/${name}/${name}-frontend/dist`;
-	const distPathDi = `${Fs.rootPathDi}/apps/${name}/${name}-frontend/dist`;
+	appDi.bind(DiKeys.AppName).toConstantValue(name);
 
-	const manifestPath = join(distPath, '/ssr-manifest.json');
-	const templatePath = join(distPath, '/index.html');
-	const renderPath = join(distPathDi, '/.server/server.js');
+	app.use(cookieParser());
+	app.use(express.json());
 
-	const manifest = await Fs.readJsonFile(manifestPath);
-	const template = await Fs.readFile(templatePath);
-	const {render} = await import(renderPath);
-
+	app.use('/assets/themes', express.static(join(paths.common.frontend, '/dist/themes'), {index: false}));
+	app.use('/assets/styles', express.static(join(paths.common.frontend, '/dist/styles'), {index: false}));
 	// Exclude "/.server" by adding double "/assets" and exclude "dist/index.html" by adding {index: false}
-	app.use('/assets', express.static(join(distPath, '/assets'), {index: false}));
+	app.use('/assets', express.static(join(paths.app(name).frontend, '/dist/assets'), {index: false}));
 
-	app.get(['/', '/:page'], async (req, res) => {
-		const {originalUrl} = req;
-		const {html, assets} = await render(originalUrl, manifest);
-		const page = replaceMasks(template, {html, assets});
+	await initDatabases();
 
-		res.send(page);
+	// Add routes
+	useExpressServer(app, {
+		controllers: [
+			RootController,
+			TokenController,
+			ApiController,
+		],
+		defaultErrorHandler: false,
 	});
 
+	// Add 404 & error handlers
 	app.use(ExpressMiddlewares.notFound(name));
 	app.use(ExpressMiddlewares.errorHandler(name));
 
