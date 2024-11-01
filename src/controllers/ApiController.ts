@@ -68,4 +68,10 @@ export class ApiController extends Controller {
 
 		return res.sendStatus(200);
 	}
+
+	@Method(POST, '/restore')
+	async restore(@Req() req: Request, @Res() res: Response): Promise<Response> {
+		// Restore is not implemented yet
+		return res.sendStatus(501);
+	}
 }
