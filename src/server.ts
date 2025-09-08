@@ -5,7 +5,6 @@ import express, {
 	type NextFunction,
 } from "express";
 import cookieParser from "cookie-parser";
-import { TokenService } from "./services";
 import {
 	getAppName,
 	getPresetType,
@@ -14,8 +13,8 @@ import {
 	initSSR,
 	initDatabases,
 } from "./utils";
-import { initRouter } from "@shared/backend";
-import { TokenController, ApiController } from "./controllers";
+import { initRouter, TokenService, sharedControllers } from "@shared/backend";
+import { ApiController } from "./controllers";
 
 const errorHandler = (
 	error: unknown,
@@ -48,7 +47,7 @@ export const server = async () => {
 
 	// API
 	initApi(app);
-	initRouter(app, [TokenController, ApiController]);
+	initRouter(app, [...sharedControllers, ApiController]);
 
 	// GET pages
 	app.use(async (req, res, next) => {

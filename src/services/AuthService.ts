@@ -3,13 +3,9 @@ import type { CookieOptions } from "express";
 import randomatic from "randomatic";
 import { argon2id } from "@noble/hashes/argon2";
 import { randomBytes, bytesToHex } from "@noble/hashes/utils";
-import { Service } from "@shared/backend";
+import { Service, SessionsRepository } from "@shared/backend";
 import type { SignUpReqSchema, SignInReqSchema } from "shared";
-import {
-	UniqueDataSourcesRepository,
-	UsersRepository,
-	SessionsRepository,
-} from "../repositories";
+import { UniqueDataSourcesRepository, UsersRepository } from "../repositories";
 import { UniqueIdGenerator, type GetInitialDataProps } from "../helpers";
 
 /**
