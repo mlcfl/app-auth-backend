@@ -5,16 +5,16 @@ import express, {
 	type NextFunction,
 } from "express";
 import cookieParser from "cookie-parser";
+import { initApi, initDatabases } from "./utils";
 import {
+	initRouter,
+	TokenService,
+	sharedControllers,
 	getAppName,
-	getPresetType,
-	initApi,
-	initSSG,
-	initSSR,
-	initDatabases,
-} from "./utils";
-import { initRouter, TokenService, sharedControllers } from "@shared/backend";
+	initHTMLPagesRender,
+} from "@shared/backend";
 import { ApiController } from "./controllers";
+import packageJson from "../package.json" assert { type: "json" };
 
 const errorHandler = (
 	error: unknown,
@@ -31,12 +31,11 @@ const errorHandler = (
 };
 
 export const server = async () => {
-	const appName = getAppName();
+	const appName = getAppName(packageJson);
 	const frontendRoot = resolve(
 		import.meta.dirname,
 		`../../${appName}-frontend`
 	);
-	const { isCSRorSSG, isSSR } = await getPresetType(frontendRoot);
 
 	await initDatabases();
 
@@ -84,11 +83,8 @@ export const server = async () => {
 		res.redirect(uri);
 	});
 
-	if (isCSRorSSG) {
-		initSSG(app, frontendRoot);
-	} else if (isSSR) {
-		await initSSR(app, frontendRoot);
-	}
+	// HTML pages
+	await initHTMLPagesRender(app, frontendRoot);
 
 	app.use(errorHandler);
 
