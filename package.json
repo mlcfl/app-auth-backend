@@ -7,9 +7,9 @@
 	"type": "module",
 	"main": "dist/index.js",
 	"scripts": {
-		"start": "node dist/index.js",
-		"dev": "tsx watch ./src/index.ts --",
-		"build": "tsx esbuild.config.ts"
+		"dev": "tsx watch --env-file=.env.development ./src/index.ts --",
+		"build": "tsx --env-file=.env.production esbuild.config.ts",
+		"start": "node --env-file=.env.production dist/index.js"
 	},
 	"devDependencies": {
 		"@types/cookie-parser": "^1.4.8",
@@ -28,7 +28,6 @@
 		"@noble/hashes": "^1.7.1",
 		"@shared/backend": "link:../../../shared/shared-backend",
 		"cookie-parser": "^1.4.7",
-		"dotenv": "^16.4.7",
 		"express": "^5.1.0",
 		"joi": "^17.13.3",
 		"jsonwebtoken": "^9.0.2",
