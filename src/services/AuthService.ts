@@ -7,6 +7,7 @@ import { Service, SessionsRepository } from "@shared/backend";
 import type { SignUpReqSchema, SignInReqSchema } from "shared";
 import { UniqueDataSourcesRepository, UsersRepository } from "../repositories";
 import { UniqueIdGenerator, type GetInitialDataProps } from "../helpers";
+import { KdfTypes } from "../generated/prisma/client";
 
 /**
  * Authorization, registration, recovery
@@ -40,9 +41,7 @@ export class AuthService extends Service {
 		login,
 		password,
 	}: SignInReqSchema): Promise<[string, string, CookieOptions] | null> {
-		const {
-			rows: [user],
-		} = await UsersRepository.getPasswordByLogin(login);
+		const user = await UsersRepository.getPasswordByLogin(login);
 
 		if (!user) {
 			return null;
@@ -54,7 +53,7 @@ export class AuthService extends Service {
 			pepperVersion,
 		} = user;
 
-		if (passwordKdfType !== "argon2id" || pepperVersion !== 1) {
+		if (passwordKdfType !== KdfTypes.ARGON2ID || pepperVersion !== 1) {
 			return null;
 		}
 
@@ -123,7 +122,7 @@ export class AuthService extends Service {
 		password: string;
 		salt: string;
 		hash: string;
-		kdfType: "argon2id";
+		kdfType: KdfTypes;
 		pepperVersion: number;
 	} {
 		const pepper = process.env.PASSWORD_PEPPER;
@@ -137,7 +136,13 @@ export class AuthService extends Service {
 		});
 		const hash = bytesToHex(hashArray);
 
-		return { password, salt, hash, kdfType: "argon2id", pepperVersion: 1 };
+		return {
+			password,
+			salt,
+			hash,
+			kdfType: KdfTypes.ARGON2ID,
+			pepperVersion: 1,
+		};
 	}
 
 	/**
@@ -154,7 +159,7 @@ export class AuthService extends Service {
 		login: string[];
 		salt: string;
 		hash: string;
-		kdfType: "argon2id";
+		kdfType: KdfTypes;
 		pepperVersion: number;
 		agreements: Record<keyof SignUpReqSchema, boolean>;
 	}): Promise<void> {
@@ -167,7 +172,7 @@ export class AuthService extends Service {
 			},
 			passwordKdfType: kdfType,
 			pepperVersion,
-			createdDate: new Date().toISOString(),
+			createdDate: new Date(),
 			agreements,
 		});
 	}

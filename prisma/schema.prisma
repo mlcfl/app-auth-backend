@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Key derivation function types
+enum KdfTypes {
+  BCRYPT
+  SCRYPT
+  ARGON2ID
+}
+
+// Users table
+model Users {
+  id              BigInt    @unique @default(autoincrement()) @db.BigInt
+  uid             String    @id @db.Uuid
+  login           String    @unique @db.Char(16)
+  password        Json      @db.JsonB
+  passwordKdfType KdfTypes
+  pepperVersion   Int       @db.SmallInt
+  createdDate     DateTime  @db.Timestamp(3)
+  agreements      Json      @db.JsonB
+}

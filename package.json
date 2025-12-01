@@ -8,8 +8,13 @@
 	"main": "dist/index.js",
 	"scripts": {
 		"dev": "tsx watch --env-file=.env.development ./src/index.ts --",
-		"build": "tsx --env-file=.env.production esbuild.config.ts",
-		"start": "node --env-file=.env.production dist/index.js"
+		"build": "pnpm prisma:generate && tsx --env-file=.env.production esbuild.config.ts",
+		"start": "node --env-file=.env.production dist/index.js",
+		"prisma:generate": "dotenv -e .env.production -- npx prisma generate",
+		"prisma:deploy": "dotenv -e .env.production -- npx prisma migrate deploy",
+		"prisma:migrate": "dotenv -e .env.development -- npx prisma migrate dev",
+		"prisma:view": "dotenv -e .env.development -- npx prisma studio",
+		"prisma:reset": "dotenv -e .env.development -- npx prisma migrate reset"
 	},
 	"devDependencies": {
 		"@types/cookie-parser": "^1.4.8",
@@ -17,20 +22,26 @@
 		"@types/jest": "^29.5.14",
 		"@types/jsonwebtoken": "^9.0.9",
 		"@types/node": "^22.14.0",
+		"@types/pg": "^8.15.6",
 		"@types/randomatic": "^3.1.5",
+		"dotenv-cli": "^11.0.0",
 		"esbuild": "^0.25.2",
 		"jest": "^29.7.0",
+		"prisma": "^7.0.1",
 		"ts-jest": "^29.3.1",
 		"tsx": "^4.19.3",
 		"typescript": "^5.8.3"
 	},
 	"dependencies": {
 		"@noble/hashes": "^1.7.1",
+		"@prisma/adapter-pg": "^7.0.1",
+		"@prisma/client": "^7.0.1",
 		"@shared/backend": "link:../../../shared/shared-backend",
 		"cookie-parser": "^1.4.7",
 		"express": "^5.1.0",
 		"joi": "^17.13.3",
 		"jsonwebtoken": "^9.0.2",
+		"pg": "^8.16.3",
 		"randomatic": "^3.1.1",
 		"shared": "link:../auth-shared"
 	}
