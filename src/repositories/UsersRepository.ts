@@ -1,6 +1,6 @@
 import { Repository } from "@shared/backend";
-import { prisma } from "../lib/prisma";
-import { KdfTypes, Prisma } from "../generated/prisma/client";
+import { Postgres } from "../lib";
+import { KdfTypes, Prisma } from "../generated/postgres/client";
 
 type User = Prisma.UsersGetPayload<{
 	select: {
@@ -35,7 +35,7 @@ export class UsersRepository extends Repository {
 	 * Create a new user
 	 */
 	static async createNew(user: User): Promise<void> {
-		await prisma.users.create({
+		await Postgres.users.create({
 			data: {
 				uid: user.uid,
 				login: user.login,
@@ -52,7 +52,7 @@ export class UsersRepository extends Repository {
 	 * Return the password data to compare with the data from the request
 	 */
 	static async getPasswordByLogin(login: string): Promise<PasswordData | null> {
-		const record = await prisma.users.findFirst({
+		const record = await Postgres.users.findFirst({
 			where: { login },
 			select: {
 				password: true,

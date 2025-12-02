@@ -7,7 +7,7 @@ import { Service, SessionsRepository } from "@shared/backend";
 import type { SignUpReqSchema, SignInReqSchema } from "shared";
 import { UniqueDataSourcesRepository, UsersRepository } from "../repositories";
 import { UniqueIdGenerator, type GetInitialDataProps } from "../helpers";
-import { KdfTypes } from "../generated/prisma/client";
+import { KdfTypes } from "../generated/postgres/client";
 
 /**
  * Authorization, registration, recovery

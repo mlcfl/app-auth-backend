@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client"
+  output = "../../src/generated/mongo"
+}
+
+datasource db {
+  provider = "mongodb"
+  // Prisma 6.19 is required for MongoDB
+  // @see https://www.prisma.io/docs/getting-started/prisma-orm/quickstart/mongodb
+  // For prisma 6.19 url is required
+  // Error here is ok and couldn't be fixed
+  url = env("MONGO_DATABASE_URL")
+}
+
+// Application settings
+model Settings {
+  id          String  @id @default("settings") @map("_id")
+  appEnabled  Boolean
+  endpoints   Endpoints
+}
+
+type Endpoints {
+  signUp  Boolean
+  signIn  Boolean
+  restore Boolean
+}
+
+// Unique data source for login generation
+model UniqueDataSources {
+  id          String  @id @default("login") @map("_id")
+  isBlocked   Boolean
+  src         Int[]
+  maps        LoginDataMap[]
+}
+
+type LoginDataMap {
+  index Int
+  map   Int[]
+}

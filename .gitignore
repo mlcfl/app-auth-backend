@@ -27,4 +27,4 @@ logs
 *.pem
 
 # Prisma
-src/generated/prisma
+src/generated

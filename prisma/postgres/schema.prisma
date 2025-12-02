@@ -1,10 +1,13 @@
 generator client {
   provider = "prisma-client"
-  output = "../src/generated/prisma"
+  output = "../../src/generated/postgres"
 }
 
 datasource db {
   provider = "postgresql"
+  // For prisma 6.19 url is required
+  // Error here is ok and couldn't be fixed
+  url = env("PG_DATABASE_URL")
 }
 
 // Key derivation function types

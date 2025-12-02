@@ -26,9 +26,9 @@ export class ApiController extends Controller {
 		}
 
 		const { body } = await validateRequest(req, signUpReqSchema);
-		const { apps, endpoints } = await SettingsRepository.getToggles();
+		const { appEnabled, endpoints } = await SettingsRepository.getSettings();
 
-		if (!apps.auth || !endpoints.auth.signUp) {
+		if (!appEnabled || !endpoints.signUp) {
 			return res.sendStatus(400);
 		}
 
@@ -50,9 +50,9 @@ export class ApiController extends Controller {
 		}
 
 		const { body } = await validateRequest(req, signInReqSchema);
-		const { apps, endpoints } = await SettingsRepository.getToggles();
+		const { appEnabled, endpoints } = await SettingsRepository.getSettings();
 
-		if (!apps.auth || !endpoints.auth.signIn) {
+		if (!appEnabled || !endpoints.signIn) {
 			return res.sendStatus(400);
 		}
 

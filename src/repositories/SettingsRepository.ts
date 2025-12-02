@@ -1,49 +1,25 @@
 import { Repository } from "@shared/backend";
+import { Mongo } from "../lib";
+import type { Settings } from "../generated/mongo/client";
 
-type Toggles = {
-	apps: {
-		root: boolean;
-		auth: boolean;
-		welcome: boolean;
-	};
+const defaultSettings: Omit<Settings, "id"> = {
+	appEnabled: false,
 	endpoints: {
-		auth: {
-			signUp: boolean;
-			signIn: boolean;
-			restore: boolean;
-		};
-	};
-};
-
-const defaultToggles: Toggles = {
-	apps: {
-		root: false,
-		auth: false,
-		welcome: false,
-	},
-	endpoints: {
-		auth: {
-			signUp: false,
-			signIn: false,
-			restore: false,
-		},
+		signUp: false,
+		signIn: false,
+		restore: false,
 	},
 } as const;
 
 export class SettingsRepository extends Repository {
-	private static readonly collectionName = "settings";
-	private static readonly id = "toggles";
-	private static readonly filter = { id: this.id };
+	private static readonly id = "settings";
 
-	static async getToggles(): Promise<Toggles> {
-		const collection = this.mongo.getCollection(this.collectionName);
-		const toggles = await collection.findOne<Toggles>(this.filter);
+	static async getSettings(): Promise<Omit<Settings, "id">> {
+		const settings = await Mongo.settings.findUnique({
+			where: { id: this.id },
+			omit: { id: true },
+		});
 
-		return toggles
-			? {
-					apps: { ...defaultToggles.apps, ...toggles.apps },
-					endpoints: { ...defaultToggles.endpoints, ...toggles.endpoints },
-			  }
-			: defaultToggles;
+		return settings ?? defaultSettings;
 	}
 }

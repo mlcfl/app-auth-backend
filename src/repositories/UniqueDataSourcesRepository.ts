@@ -1,22 +1,27 @@
 import { Repository } from "@shared/backend";
-import type { UniqueData } from "../helpers";
+import { Mongo } from "../lib";
+import type { UniqueDataSources } from "../generated/mongo/client";
 
 export class UniqueDataSourcesRepository extends Repository {
-	private static readonly collectionName = "uniqueDataSources";
-	private static readonly id = "loginData";
-	private static readonly filter = { id: this.id };
+	private static readonly id = "login";
 
-	static async getLoginData(): Promise<UniqueData | null> {
-		const collection = this.mongo.getCollection(this.collectionName);
-
-		return await collection.findOne<UniqueData>(this.filter);
+	static async getLoginData(): Promise<Omit<UniqueDataSources, "id"> | null> {
+		return await Mongo.uniqueDataSources.findUnique({
+			where: { id: this.id },
+			omit: { id: true },
+		});
 	}
 
-	static async setLoginData(data: UniqueData): Promise<void> {
-		const collection = this.mongo.getCollection(this.collectionName);
+	static async setLoginData(
+		data: Omit<UniqueDataSources, "id">
+	): Promise<void> {
 		const document = { ...data, id: this.id };
-		const options = { upsert: true };
 
-		await collection.updateOne(this.filter, { $set: document }, options);
+		await Mongo.uniqueDataSources.upsert({
+			where: { id: this.id },
+			create: document,
+			update: document,
+			omit: { id: true },
+		});
 	}
 }
