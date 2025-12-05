@@ -7,7 +7,7 @@
 	"type": "module",
 	"main": "dist/index.js",
 	"scripts": {
-		"dev": "tsx watch --env-file=.env.development ./src/index.ts --",
+		"dev": "tsx watch --exclude \"./src/generated/**/*\" --env-file=.env.development ./src/index.ts --",
 		"build": "pnpm prisma:generate && tsx --env-file=.env.production esbuild.config.ts",
 		"start": "node --env-file=.env.production dist/index.js",
 		"prisma:generate": "pnpm prisma:generate:pg && pnpm prisma:generate:mongo",
@@ -49,9 +49,11 @@
 		"@prisma/client": "^6.19.0",
 		"@shared/backend": "link:../../../shared/shared-backend",
 		"cookie-parser": "^1.4.7",
+		"execa": "^9.6.1",
 		"express": "^5.1.0",
 		"joi": "^17.13.3",
 		"jsonwebtoken": "^9.0.2",
+		"mongodb-memory-server": "^10.4.1",
 		"pg": "^8.16.3",
 		"randomatic": "^3.1.1",
 		"shared": "link:../auth-shared"

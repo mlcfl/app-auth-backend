@@ -2,12 +2,14 @@ import { Repository } from "@shared/backend";
 import { Mongo } from "../lib";
 import type { Settings } from "../generated/mongo/client";
 
+// Endpoints should be enabled by default
+// Otherwise, the user will need to go to admin settings and enable each endpoint
 const defaultSettings: Omit<Settings, "id"> = {
-	appEnabled: false,
+	appEnabled: true,
 	endpoints: {
-		signUp: false,
-		signIn: false,
-		restore: false,
+		signUp: true,
+		signIn: true,
+		restore: true,
 	},
 } as const;
 
