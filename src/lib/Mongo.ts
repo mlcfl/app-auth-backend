@@ -1,32 +1,45 @@
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { execa } from "execa";
 import { PrismaClient } from "../generated/mongo/client";
+import type { AppConfig } from "../types";
 
-let datasourceUrl = process.env.MONGO_DATABASE_URL;
+let Mongo: PrismaClient;
 
-if (process.env.DATABASE_MODE === "memory") {
-	console.log("Starting in-memory MongoDB instance...");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-	const db = await MongoMemoryReplSet.create({
-		replSet: {
-			count: 1,
-			dbName: "mlc-app-auth",
-		},
-	});
+export const initMongo = async (appConfig?: AppConfig) => {
+	const mode = appConfig?.dbMode ?? process.env.DATABASE_MODE;
+	let datasourceUrl = appConfig?.mongoUrl ?? process.env.MONGO_DATABASE_URL;
 
-	datasourceUrl = `${db.getUri().split("?")[0]}mlc-app-auth`;
-	process.env.MONGO_DATABASE_URL = datasourceUrl;
+	if (mode === "memory") {
+		console.log("Starting in-memory MongoDB instance...");
 
-	// Push the Prisma schema to the in-memory database
-	await execa("pnpm prisma:deploy:mongo", {
-		stdio: "inherit",
-		env: {
-			...process.env,
-			MONGO_DATABASE_URL: datasourceUrl,
-		},
-	});
+		const db = await MongoMemoryReplSet.create({
+			replSet: {
+				count: 1,
+				dbName: "mlc-app-auth",
+			},
+		});
 
-	console.log("In-memory MongoDB instance started.");
-}
+		datasourceUrl = `${db.getUri().split("?")[0]}mlc-app-auth`;
 
-export const Mongo = new PrismaClient({ datasourceUrl });
+		// Push the Prisma schema to the in-memory database
+		await execa("pnpm prisma:deploy:mongo", {
+			stdio: "inherit",
+			env: {
+				...process.env,
+				MONGO_DATABASE_URL: datasourceUrl,
+			},
+			cwd: join(__dirname, ".."),
+		});
+
+		console.log("In-memory MongoDB instance started.");
+	}
+
+	Mongo = new PrismaClient({ datasourceUrl });
+};
+
+export { Mongo };

@@ -1,38 +1,52 @@
-import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { join, dirname } from "node:path";
 import { tmpdir, platform } from "node:os";
 import { execa } from "execa";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient as PostgresClient } from "../generated/postgres/client";
 import { PrismaClient as SqliteClient } from "../generated/sqlite/client";
+import type { AppConfig } from "../types";
 
-let client;
+let Postgres: PostgresClient | SqliteClient;
 
-if (process.env.DATABASE_MODE === "memory") {
-	console.log("Starting in-memory Postgres instance...");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-	// For Unix-like systems, use memory
-	// For Windows, use a temporary file
-	const datasourceUrl =
-		platform() !== "win32"
-			? "file::memory:?cache=shared"
-			: `file:${join(tmpdir(), `memory-${Date.now()}.db`)}`;
+export const initPostgres = async (appConfig?: AppConfig) => {
+	const mode = appConfig?.dbMode ?? process.env.DATABASE_MODE;
+	const url = appConfig?.postgresUrl ?? process.env.PG_DATABASE_URL;
 
-	client = new SqliteClient({ datasourceUrl });
+	let client;
 
-	// Push the Prisma schema to the in-memory database
-	await execa("pnpm prisma:deploy:sqlite", {
-		stdio: "inherit",
-		env: {
-			...process.env,
-			PG_DATABASE_URL: datasourceUrl,
-		},
-	});
+	if (mode === "memory") {
+		console.log("Starting in-memory Postgres instance...");
 
-	console.log("In-memory Postgres instance started.");
-} else {
-	const connectionString = process.env.PG_DATABASE_URL;
-	const adapter = new PrismaPg({ connectionString });
-	client = new PostgresClient({ adapter });
-}
+		// For Unix-like systems, use memory
+		// For Windows, use a temporary file
+		const datasourceUrl =
+			platform() !== "win32"
+				? "file::memory:?cache=shared"
+				: `file:${join(tmpdir(), `memory-${Date.now()}.db`)}`;
 
-export const Postgres = client;
+		client = new SqliteClient({ datasourceUrl });
+
+		// Push the Prisma schema to the in-memory database
+		await execa("pnpm prisma:deploy:sqlite", {
+			stdio: "inherit",
+			env: {
+				...process.env,
+				PG_DATABASE_URL: datasourceUrl,
+			},
+			cwd: join(__dirname, ".."),
+		});
+
+		console.log("In-memory Postgres instance started.");
+	} else {
+		const adapter = new PrismaPg({ connectionString: url });
+		client = new PostgresClient({ adapter });
+	}
+
+	Postgres = client;
+};
+
+export { Postgres };

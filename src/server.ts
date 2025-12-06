@@ -15,6 +15,7 @@ import {
 } from "@shared/backend";
 import { ApiController } from "./controllers";
 import packageJson from "../package.json" assert { type: "json" };
+import type { AppConfig } from "./types";
 
 const errorHandler = (
 	error: unknown,
@@ -30,14 +31,14 @@ const errorHandler = (
 	res.status(500).send("Internal server error");
 };
 
-export const server = async () => {
+export const server = async (appConfig?: AppConfig) => {
 	const appName = getAppName(packageJson);
 	const frontendRoot = resolve(
 		import.meta.dirname,
 		`../../${appName}-frontend`
 	);
 
-	await initDatabases();
+	await initDatabases(appConfig);
 
 	const app = express();
 
