@@ -1,20 +1,14 @@
+import { Controller, Post, Req, Res } from "@nestjs/common";
+import type { Request, Response } from "express";
 import { validateRequest } from "../utils";
-import {
-	Router,
-	Method,
-	POST,
-	type Request,
-	type Response,
-	Controller,
-} from "@shared/backend";
 import { signUpReqSchema, signInReqSchema } from "shared";
 import { AuthService } from "../services";
 import { SettingsRepository } from "../repositories";
 
-@Router("/api")
-export class ApiController extends Controller {
-	@Method(POST, "/signup")
-	async signUp(req: Request, res: Response): Promise<Response> {
+@Controller("api")
+export class ApiController {
+	@Post("signup")
+	async signUp(@Req() req: Request, @Res() res: Response): Promise<Response> {
 		if (!req.xhr) {
 			return res.sendStatus(400);
 		}
@@ -37,8 +31,8 @@ export class ApiController extends Controller {
 		return res.json({ login: login.join("-"), password });
 	}
 
-	@Method(POST, "/signin")
-	async signIn(req: Request, res: Response): Promise<Response> {
+	@Post("signin")
+	async signIn(@Req() req: Request, @Res() res: Response): Promise<Response> {
 		if (!req.xhr) {
 			return res.sendStatus(400);
 		}
@@ -67,8 +61,8 @@ export class ApiController extends Controller {
 		return res.sendStatus(200);
 	}
 
-	@Method(POST, "/restore")
-	async restore(req: Request, res: Response): Promise<Response> {
+	@Post("restore")
+	async restore(@Req() _req: Request, @Res() res: Response): Promise<Response> {
 		// Restore is not implemented yet
 		return res.sendStatus(501);
 	}

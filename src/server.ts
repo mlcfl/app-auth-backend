@@ -1,27 +1,19 @@
 import { resolve } from "node:path";
-import express, {
-	type Request,
-	type Response,
-	type NextFunction,
-} from "express";
+import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import cookieParser from "cookie-parser";
+import type { Request, Response, NextFunction } from "express";
 import { initApi, initDatabases } from "./utils";
-import {
-	initRouter,
-	TokenService,
-	sharedControllers,
-	getAppName,
-	initHTMLPagesRender,
-} from "@shared/backend";
-import { ApiController } from "./controllers";
+import { TokenService, getAppName, initHTMLPagesRender } from "@shared/backend";
 import packageJson from "../package.json" assert { type: "json" };
+import { AppModule } from "./app.module";
 import type { AppConfig } from "./types";
 
 const errorHandler = (
 	error: unknown,
-	req: Request,
+	_req: Request,
 	res: Response,
-	next: NextFunction
+	_next: NextFunction,
 ): void => {
 	if (res.headersSent) {
 		return;
@@ -35,22 +27,21 @@ export const server = async (appConfig?: AppConfig) => {
 	const appName = getAppName(packageJson);
 	const frontendRoot = resolve(
 		import.meta.dirname,
-		`../../${appName}-frontend`
+		`../../${appName}-frontend`,
 	);
 
 	await initDatabases(appConfig);
 
-	const app = express();
+	const nestApp = await NestFactory.create<NestExpressApplication>(AppModule);
+	const expressApp = nestApp.getHttpAdapter().getInstance();
 
-	app.use(cookieParser());
-	app.use(express.json());
+	nestApp.use(cookieParser());
 
 	// API
-	initApi(app);
-	initRouter(app, [...sharedControllers, ApiController]);
+	initApi(expressApp);
 
 	// GET pages
-	app.use(async (req, res, next) => {
+	nestApp.use(async (req: Request, res: Response, next: NextFunction) => {
 		// Do not check token for !GET requests
 		if (req.method !== "GET") {
 			return next();
@@ -85,9 +76,11 @@ export const server = async (appConfig?: AppConfig) => {
 	});
 
 	// HTML pages
-	await initHTMLPagesRender(app, frontendRoot);
+	await initHTMLPagesRender(expressApp, frontendRoot);
 
-	app.use(errorHandler);
+	await nestApp.init();
 
-	return app;
+	expressApp.use(errorHandler);
+
+	return expressApp;
 };
