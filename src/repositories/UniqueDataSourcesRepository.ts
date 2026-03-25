@@ -1,20 +1,19 @@
-import { Repository } from "@shared/backend";
+import { Injectable } from "@nestjs/common";
 import { Mongo } from "../lib";
 import type { UniqueDataSources } from "../generated/mongo/client";
 
-export class UniqueDataSourcesRepository extends Repository {
-	private static readonly id = "login";
+@Injectable()
+export class UniqueDataSourcesRepository {
+	private readonly id = "login";
 
-	static async getLoginData(): Promise<Omit<UniqueDataSources, "id"> | null> {
+	async getLoginData(): Promise<Omit<UniqueDataSources, "id"> | null> {
 		return await Mongo.uniqueDataSources.findUnique({
 			where: { id: this.id },
 			omit: { id: true },
 		});
 	}
 
-	static async setLoginData(
-		data: Omit<UniqueDataSources, "id">
-	): Promise<void> {
+	async setLoginData(data: Omit<UniqueDataSources, "id">): Promise<void> {
 		await Mongo.uniqueDataSources.upsert({
 			where: { id: this.id },
 			create: data,

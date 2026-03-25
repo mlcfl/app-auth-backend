@@ -1,1 +1,2 @@
-export * from "./ApiController";
+export * from "./BasicController";
+export * from "./PagesController";

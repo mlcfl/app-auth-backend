@@ -1,4 +1,4 @@
-import { Repository } from "@shared/backend";
+import { Injectable } from "@nestjs/common";
 import { Mongo } from "../lib";
 import type { Settings } from "../generated/mongo/client";
 
@@ -13,10 +13,11 @@ const defaultSettings: Omit<Settings, "id"> = {
 	},
 } as const;
 
-export class SettingsRepository extends Repository {
-	private static readonly id = "settings";
+@Injectable()
+export class SettingsRepository {
+	private readonly id = "settings";
 
-	static async getSettings(): Promise<Omit<Settings, "id">> {
+	async getSettings(): Promise<Omit<Settings, "id">> {
 		const settings = await Mongo.settings.findUnique({
 			where: { id: this.id },
 			omit: { id: true },

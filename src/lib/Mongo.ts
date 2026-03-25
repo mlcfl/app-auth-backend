@@ -17,14 +17,15 @@ export const initMongo = async (appConfig?: AppConfig) => {
 	if (mode === "memory") {
 		console.log("Starting in-memory MongoDB instance...");
 
+		const dbName = "mlc-app-auth"; // any name
 		const db = await MongoMemoryReplSet.create({
 			replSet: {
 				count: 1,
-				dbName: "mlc-app-auth",
+				dbName,
 			},
 		});
 
-		datasourceUrl = `${db.getUri().split("?")[0]}mlc-app-auth`;
+		datasourceUrl = db.getUri().split("?")[0] + dbName;
 
 		// Push the Prisma schema to the in-memory database
 		await execa("pnpm prisma:deploy:mongo", {

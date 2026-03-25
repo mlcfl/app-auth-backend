@@ -1,3 +1,2 @@
-export * from "./validateRequest";
-export * from "./initApi";
+export * from "./getFrontendRoot";
 export * from "./initDatabases";

@@ -7,7 +7,7 @@ import { PrismaClient as PostgresClient } from "../generated/postgres/client";
 import { PrismaClient as SqliteClient } from "../generated/sqlite/client";
 import type { AppConfig } from "../types";
 
-let Postgres: PostgresClient | SqliteClient;
+let Postgres: PostgresClient;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -46,7 +46,7 @@ export const initPostgres = async (appConfig?: AppConfig) => {
 		client = new PostgresClient({ adapter });
 	}
 
-	Postgres = client;
+	Postgres = client as PostgresClient;
 };
 
 export { Postgres };

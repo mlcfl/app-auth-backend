@@ -1,4 +1,4 @@
-import { Repository } from "@shared/backend";
+import { Injectable } from "@nestjs/common";
 import { Postgres } from "../lib";
 import { KdfTypes, Prisma } from "../generated/postgres/client";
 
@@ -30,11 +30,12 @@ type PasswordData = {
 	pepperVersion: number;
 };
 
-export class UsersRepository extends Repository {
+@Injectable()
+export class UsersRepository {
 	/**
 	 * Create a new user
 	 */
-	static async createNew(user: User): Promise<void> {
+	async createNew(user: User): Promise<void> {
 		await Postgres.users.create({
 			data: {
 				uid: user.uid,
@@ -51,7 +52,7 @@ export class UsersRepository extends Repository {
 	/**
 	 * Return the password data to compare with the data from the request
 	 */
-	static async getPasswordByLogin(login: string): Promise<PasswordData | null> {
+	async getPasswordByLogin(login: string): Promise<PasswordData | null> {
 		const record = await Postgres.users.findFirst({
 			where: { login },
 			select: {

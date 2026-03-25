@@ -1,50 +1,73 @@
 import { randomUUID } from "node:crypto";
-import type { CookieOptions } from "express";
-import randomatic from "randomatic";
+import { Injectable, Inject, BadRequestException } from "@nestjs/common";
 import { argon2id } from "@noble/hashes/argon2";
 import { randomBytes, bytesToHex } from "@noble/hashes/utils";
-import { Service, SessionsRepository } from "@shared/backend";
-import type { SignUpReqSchema, SignInReqSchema } from "shared";
-import { UniqueDataSourcesRepository, UsersRepository } from "../repositories";
-import { UniqueIdGenerator, type GetInitialDataProps } from "../helpers";
+import randomatic from "randomatic";
+import type {
+	SignUpReqBodySchema,
+	SignUpResSchema,
+	SignInReqBodySchema,
+} from "shared";
+import { TokenService, type TokenPair } from "./TokenService";
 import { KdfTypes } from "../generated/postgres/client";
+import {
+	UniqueDataSourcesRepository,
+	UsersRepository,
+	SettingsRepository,
+} from "../repositories";
+import { UniqueIdGenerator, type GetInitialDataProps } from "../helpers";
 
 /**
- * Authorization, registration, recovery
+ * Basic operations: registration, login, logout, restore account, refresh token
  */
-export class AuthService extends Service {
+@Injectable()
+export class AuthService {
+	constructor(
+		@Inject(UsersRepository) private readonly usersRepository: UsersRepository,
+		@Inject(UniqueDataSourcesRepository) private readonly uniqueDataSourcesRepository: UniqueDataSourcesRepository,
+		@Inject(SettingsRepository) private readonly settingsRepository: SettingsRepository,
+		@Inject(TokenService) private readonly tokenService: TokenService,
+	) {}
+
 	/**
-	 * Sign up a new user
+	 * Register a new account
 	 */
-	static async signUp(
-		body: SignUpReqSchema
-	): Promise<{ login: string[]; password: string }> {
-		const login = await this.createLogin();
+	async signUp(body: SignUpReqBodySchema): Promise<SignUpResSchema> {
+		const { appEnabled, endpoints } =
+			await this.settingsRepository.getSettings();
+
+		if (!appEnabled || !endpoints.signUp) {
+			throw new BadRequestException();
+		}
+
+		const login = (await this.createLogin()).join("");
 		const { password, ...passwordRest } = this.createPassword();
 
-		// Transform agreements into booleans
-		const agreements: Record<keyof SignUpReqSchema | string, boolean> =
+		const agreements: Record<keyof SignUpReqBodySchema | string, boolean> =
 			Object.fromEntries(
-				Object.entries(body).map(([key, val]) => [key, Boolean(val)])
+				Object.entries(body).map(([key, val]) => [key, Boolean(val)]),
 			);
 
-		// Save a new user
 		await this.saveNewUser({ ...passwordRest, login, agreements });
 
 		return { login, password };
 	}
 
 	/**
-	 * Set a temporary cookie for later exchange for a refresh token
+	 * Verify credentials and return a token pair
 	 */
-	static async signIn({
-		login,
-		password,
-	}: SignInReqSchema): Promise<[string, string, CookieOptions] | null> {
-		const user = await UsersRepository.getPasswordByLogin(login);
+	async signIn({ login, password }: SignInReqBodySchema): Promise<TokenPair> {
+		const { appEnabled, endpoints } =
+			await this.settingsRepository.getSettings();
+
+		if (!appEnabled || !endpoints.signIn) {
+			throw new BadRequestException();
+		}
+
+		const user = await this.usersRepository.getPasswordByLogin(login);
 
 		if (!user) {
-			return null;
+			throw new BadRequestException();
 		}
 
 		const {
@@ -54,7 +77,7 @@ export class AuthService extends Service {
 		} = user;
 
 		if (passwordKdfType !== KdfTypes.ARGON2ID || pepperVersion !== 1) {
-			return null;
+			throw new BadRequestException();
 		}
 
 		const pepper = process.env.PASSWORD_PEPPER;
@@ -64,40 +87,44 @@ export class AuthService extends Service {
 			t: 1,
 			p: 1,
 		});
-		const passwordsEqual = bytesToHex(hashArray) === hash;
 
-		if (!passwordsEqual) {
-			return null;
+		if (bytesToHex(hashArray) !== hash) {
+			throw new BadRequestException();
 		}
 
-		const host = process.env.HOST ?? "mlc.local";
-		const cookieName = "tt";
-		const token = randomUUID();
-		const expires = new Date();
-		expires.setMinutes(expires.getMinutes() + 2);
+		return await this.tokenService.createTokenPair(login);
+	}
 
-		const options: CookieOptions = {
-			secure: false, // true for prod
-			httpOnly: true,
-			domain: "." + host,
-			sameSite: "strict",
-			path: "/api",
-			signed: false,
-			expires,
-		};
+	/**
+	 * Clear auth cookies
+	 */
+	signOut() {
+		const {
+			accessTokenName,
+			refreshTokenName,
+			accessTokenOptions,
+			refreshTokenOptions,
+		} = this.tokenService;
 
-		SessionsRepository.addTempToken(login, { token, expires });
+		return [
+			[accessTokenName, accessTokenOptions],
+			[refreshTokenName, refreshTokenOptions],
+		] as const;
+	}
 
-		return [cookieName, token, options];
+	/**
+	 * Verify refresh token and return a new token pair
+	 */
+	async refreshToken(refreshToken: string): Promise<TokenPair> {
+		return await this.tokenService.updateTokenPair(refreshToken);
 	}
 
 	/**
 	 * Creates a random, collision-resistant login and saves the updated collection in the database
 	 */
-	private static async createLogin(): Promise<string[]> {
-		const uniqueData = UniqueDataSourcesRepository;
+	private async createLogin(): Promise<string[]> {
+		const dataSource = this.uniqueDataSourcesRepository;
 		const generator = UniqueIdGenerator;
-
 		const options: GetInitialDataProps = {
 			minNumber: 0,
 			maxNumber: 9999,
@@ -105,10 +132,10 @@ export class AuthService extends Service {
 		};
 
 		const loginData =
-			(await uniqueData.getLoginData()) ?? generator.getInitialData(options);
+			(await dataSource.getLoginData()) ?? generator.getInitialData(options);
 		const { id: login, updatedUniqueData } = generator.generate(loginData);
 
-		await uniqueData.setLoginData(updatedUniqueData);
+		await dataSource.setLoginData(updatedUniqueData);
 
 		return login;
 	}
@@ -118,7 +145,7 @@ export class AuthService extends Service {
 	 *
 	 * @see https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
 	 */
-	private static createPassword(): {
+	private createPassword(): {
 		password: string;
 		salt: string;
 		hash: string;
@@ -148,7 +175,7 @@ export class AuthService extends Service {
 	/**
 	 * Saves a new user in the DB
 	 */
-	private static async saveNewUser({
+	private async saveNewUser({
 		login,
 		salt,
 		hash,
@@ -156,20 +183,17 @@ export class AuthService extends Service {
 		pepperVersion,
 		agreements,
 	}: {
-		login: string[];
+		login: string;
 		salt: string;
 		hash: string;
 		kdfType: KdfTypes;
 		pepperVersion: number;
-		agreements: Record<keyof SignUpReqSchema, boolean>;
+		agreements: Record<keyof SignUpReqBodySchema, boolean>;
 	}): Promise<void> {
-		await UsersRepository.createNew({
+		await this.usersRepository.createNew({
 			uid: randomUUID(),
-			login: login.join(""),
-			password: {
-				hash,
-				salt,
-			},
+			login,
+			password: { hash, salt },
 			passwordKdfType: kdfType,
 			pepperVersion,
 			createdDate: new Date(),
