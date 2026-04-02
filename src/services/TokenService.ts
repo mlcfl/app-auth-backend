@@ -19,10 +19,12 @@ export type TokenPair = {
 @Injectable()
 export class TokenService {
 	private readonly algorithm = "RS256" as const;
-	private readonly accessTokenMaxAge = "1h" as const;
-	private readonly refreshTokenMaxAge = "7d" as const;
-	private readonly accessTokenMaxAgeNum = 1 as const;
-	private readonly refreshTokenMaxAgeNum = 7 as const;
+	// Access token - 10 minutes
+	private readonly accessTokenMaxAge = "10m" as const;
+	private readonly accessTokenMaxAgeNum = 10 as const;
+	// Refresh token - 1 day
+	private readonly refreshTokenMaxAge = "1d" as const;
+	private readonly refreshTokenMaxAgeNum = 1 as const;
 
 	readonly accessTokenName = "at";
 	readonly refreshTokenName = "rt";
@@ -60,7 +62,7 @@ export class TokenService {
 	get refreshTokenOptions(): CookieOptions {
 		return {
 			...this.defaultTokenOptions,
-			path: "/api/refresh-token",
+			path: "/api/rt",
 		};
 	}
 
@@ -108,8 +110,8 @@ export class TokenService {
 		const refreshToken = await this.createRefreshToken(payload);
 
 		const accessTokenExpires = new Date();
-		const hours = accessTokenExpires.getHours() + this.accessTokenMaxAgeNum;
-		accessTokenExpires.setHours(hours);
+		const minutes = accessTokenExpires.getMinutes() + this.accessTokenMaxAgeNum;
+		accessTokenExpires.setMinutes(minutes);
 
 		const refreshTokenExpires = new Date();
 		const days = refreshTokenExpires.getDate() + this.refreshTokenMaxAgeNum;

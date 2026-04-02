@@ -2,13 +2,12 @@ import {
 	Controller,
 	Post,
 	Body,
-	Req,
 	Res,
 	Inject,
 	HttpException,
 	HttpStatus,
 } from "@nestjs/common";
-import type { Request, Response } from "express";
+import type { Response } from "express";
 import {
 	RequireXHR,
 	AccessType,
@@ -19,7 +18,6 @@ import {
 	signInSchema,
 	signUpSchema,
 	restoreSchema,
-	refreshTokenSchema,
 	signOutSchema,
 	type SignInReqBodySchema,
 	type SignUpReqBodySchema,
@@ -83,22 +81,5 @@ export class BasicController {
 	@ValidationSchema(restoreSchema)
 	restore(): never {
 		throw new HttpException("Not Implemented", HttpStatus.NOT_IMPLEMENTED);
-	}
-
-	/**
-	 * Refresh token pair
-	 */
-	@Post("refresh-token")
-	@RequireXHR()
-	@AccessType(AccessTypes.RefreshToken)
-	@ValidationSchema(refreshTokenSchema)
-	async refreshToken(
-		@Req() req: Request,
-		@Res({ passthrough: true }) res: Response,
-	): Promise<void> {
-		const tokens = await this.authService.refreshToken(req.cookies.rt);
-
-		res.cookie(...tokens.accessToken);
-		res.cookie(...tokens.refreshToken);
 	}
 }
